@@ -110,7 +110,11 @@ Respond with a JSON object with key 'facts' containing a list of objects matchin
             is_grounded, grounding_score, matched_note = verify_grounding(page_text, item.evidence_quote)
 
             # 2. Value and Unit Normalization
-            norm_val, norm_unit, val_type = normalize_fact_values(item.raw_value, item.unit)
+            norm_val, norm_unit, val_type = normalize_fact_values(
+                item.raw_value,
+                item.unit,
+                evidence_quote=item.evidence_quote
+            )
 
             fact = Fact(
                 subject=item.subject.strip(),

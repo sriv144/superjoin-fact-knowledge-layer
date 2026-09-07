@@ -120,6 +120,7 @@ class FactKnowledgePipeline:
     def compute_relationships(self) -> List[CrossDocumentRelationship]:
         """
         Compute relationships across all documents currently in the database.
+        Idempotent: clears previous relationship state before saving newly computed pairs.
         """
         all_facts = self.db.get_facts(grounded_only=False)
         candidate_pairs = CandidateMatcher.find_candidate_pairs(all_facts)
@@ -129,6 +130,11 @@ class FactKnowledgePipeline:
             rel = self.relationship_engine.evaluate_pair(fact_a, fact_b)
             if rel:
                 relationships.append(rel)
+
+        # Clear previous relationships to ensure exact idempotency
+        with self.db._get_connection() as conn:
+            conn.cursor().execute("DELETE FROM relationships")
+            conn.commit()
 
         self.db.save_relationships(relationships)
         return relationships

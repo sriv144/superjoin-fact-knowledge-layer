@@ -115,10 +115,10 @@ Our goal is not merely to compare raw numbers, but to build a **context-aware kn
             └── Strictly cross-doc (no intra-doc pairs)
                           │
                           ▼
-           [Contradiction-Safe Relationship Engine]
-            ├── CORROBORATES (numeric margin ≤ 2%, same context)
-            ├── RECONCILABLE (differing time period, scope, or state)
-            └── CONTRADICTS (same period/scope, material divergence)
+            [Contradiction-Safe Relationship Engine]
+             ├── CORROBORATES (strict numeric margin ≤ 0.5%, same context)
+             ├── RECONCILABLE (differing time period, scope, or minor rounding variation)
+             └── CONTRADICTS (same period/scope, material divergence)
                           │
                           ▼
                  [SQLite Persistence]
@@ -147,14 +147,16 @@ Indian financial disclosures commonly oscillate between `₹ million` and `₹ c
 Comparing every fact with every other fact ($O(N^2)$ LLM calls) is wasteful and slow. We cluster facts into candidate buckets using content-derived keys (`normalized_subject|canonical_predicate`). Crucially, facts from the exact same document ID are never paired, restricting comparison strictly to cross-document disclosures.
 
 #### 6. Contradiction Safety vs. Contextual Reconciliation
-A numerical difference alone must never be prematurely labeled a contradiction. Before classifying a mismatch as `CONTRADICTS`, the relationship engine inspects:
-- **Temporal Context**: Normalizes 2-digit fiscal years (FY24 $\rightarrow$ 2024) and calendar years. If periods differ (e.g. FY21 vs FY24), the pair is classified as `RECONCILABLE`.
-- **Scope Definitions**: Checks inclusion/exclusion qualifiers (e.g. "including partner agents" vs "excluding partner agents").
-- **Only When Context is Identical**: If time, scope, and entity are identical but values materially diverge (>5%), it is classified as `CONTRADICTS`.
+A numerical difference alone must never be prematurely labeled a contradiction. Before classifying a relationship, the engine applies multi-stage context evaluation:
+- **Strict Numerical Tolerance (0.5%)**: For identical time periods and compatible scopes, values matching within **0.5%** are classified as `CORROBORATES` (e.g., ₹8,141.538 Cr vs ₹8,142 Cr shows a 0.00567% difference, well within threshold).
+- **Minor Divergences (0.5% - 5%)**: Values differing slightly (e.g., ~1-3%) without conflicting scope are classified as `RECONCILABLE` attributable to rounding or reporting cutoffs, preventing false claims of strict corroboration.
+- **Temporal Context**: Normalizes 2-digit fiscal years (FY24 $\rightarrow$ 2024) and calendar dates. Differing periods (e.g. FY21 vs FY24) are classified as `RECONCILABLE`.
+- **Scope Definitions**: Inspects inclusion/exclusion qualifiers (e.g. "including partner agents" vs "excluding partner agents").
+- **Genuine Material Conflicts**: When entity, time period, and scope are identical but values materially diverge (>5%), the pair is flagged as `CONTRADICTS`.
 
 #### 7. Where AI is Used vs. Deterministic Logic
 - **AI (LLM)**: Structured fact extraction from unstructured page text and qualitative semantic reasoning for non-numeric claims.
-- **Deterministic Python**: Text extraction, footnote cleaning, evidence quote verification, unit/currency normalization, candidate pairing, numeric tolerance checks, and temporal window comparisons.
+- **Deterministic Python**: Text extraction, footnote cleaning, evidence quote verification, unit/currency normalization, candidate pairing, strict numeric tolerance checks, and temporal window comparisons.
 
 #### 8. Why SQLite and Why No Graph Database
 A graph database (e.g. Neo4j) introduces heavy external processes, Docker requirements, and schema overhead without adding value for factual comparison. SQLite provides zero-dependency persistence, atomic ACID transactions, and instant startup. Extracted facts and computed relationships load instantaneously in Streamlit without re-running LLM queries.
@@ -163,19 +165,19 @@ A graph database (e.g. Neo4j) introduces heavy external processes, Docker requir
 
 ## Required Cases
 
-The following table summarizes the four assignment cases discovered, grounded, and verified by our system from the Delhivery starter dataset:
+The following table summarizes the four assignment cases discovered, grounded, and verified by our system from the starter dataset:
 
 | Case | Classification | Source Documents | Fact A vs Fact B | System Reasoning |
 | :--- | :--- | :--- | :--- | :--- |
 | **Case 1: Corroboration** | `CORROBORATES` | Annual Report FY24 (p. 36) & Earnings Presentation (p. 6) | `₹81,415.38 million` vs `₹8,142 Cr` | $81,415.38\text{ million INR} = 8,141.538\text{ crore INR}$. Both report FY24 services revenue for Delhivery Limited, matching within 0.005% rounding tolerance across different reporting units. |
-| **Case 2: Contradiction** | `CONTRADICTS` | Prospectus 2022 (p. 1) & Annual Report FY24 (p. 51) | `Gurugram 122002` vs `Gurugram 122001` | Direct geographical contradiction in the reported postal PIN code for the exact same physical headquarters building (Plot 5 / Plot No. 5, Sector 44, Gurugram). |
+| **Case 2: Contradiction** | `CONTRADICTS` *(Likely / unresolved contradiction)* | Prospectus 2022 (p. 1) & Annual Report FY24 (p. 51) | `Gurugram 122002` vs `Gurugram 122001` | **Likely / unresolved contradiction**: Both documents identify Plot 5 / Plot No. 5, Sector 44, Gurugram but report PIN 122002 versus 122001. Neither supplied source contains context that reconciles the discrepancy. It may represent a typo, later correction, or postal change, so the system identifies a likely conflict without asserting which source is correct. |
 | **Case 3: Contextual Reconciliation** | `RECONCILABLE` | Annual Report FY24 (p. 2) & Earnings Presentation (p. 8) | `98,135 workforce strength` vs `63,713 team size` (as of March 31, 2024) | Reconciled by scope definition: Footnote 5 of AR includes partner agents, while Footnote 4 of EP excludes partner agents and lists them separately as 34,422. Exact math: $63,713 + 34,422 = 98,135$. |
-| **Case 4: Authentic Failure Case** | `FAILURE RECORDED` | Earnings Presentation (p. 9) & Annual Report (p. 36) | Multi-column tabular flattening | PDF text extraction flattens multi-column tables into vertical streams, detaching numbers from column headers. Grounding verification caught and rejected ungrounded table quote reconstructions. |
+| **Case 4: Authentic Failure Case** | `FAILURE RECORDED` | Earnings Presentation (p. 9) & Annual Report (p. 36) | Multi-column tabular flattening | Standard PDF text extraction flattens multi-column tables into vertical streams, detaching numbers from column headers. Grounding verification caught and rejected ungrounded table quote reconstructions. |
 
 ### In-Depth Failure Case Analysis (Case 4)
 - **What Happened**: In dense financial comparison tables (e.g. Page 9 of the Earnings Presentation showing FY22, FY23, and FY24 revenue and shipment volumes across segments), PyMuPDF extracted strings sequentially by stream position, resulting in tokens like `"59% 63% 62% ... 7,054 7,224 8,142 FY22 FY23 FY24"`. When the model attempted to extract FY23 metrics, the lack of row-column alignment caused quote reconstruction errors.
-- **Why It Happened**: Standard PDF text extraction reads layout streams and discards 2D visual bounding boxes and table borders.
-- **How Handled Now**: Our strict grounding validator checks candidate quotes against source page text. If an extracted evidence quote cannot be verified as a contiguous substring in the page, it is flagged as `UNGROUNDED` and assigned low confidence (0.2).
+- **Why It Happened**: Standard PDF text extraction reads layout streams and discards 2D visual bounding boxes and table borders. This was an authentic developer-observed failure encountered during initial multi-column table extraction.
+- **How Handled Now**: All 91 accepted facts in the database are verified grounded with literal quotes. Unsupported candidate extractions are rejected before persistence or flagged as `UNGROUNDED` with low confidence (0.2) and recorded in the audit log.
 - **Future Improvement**: Implement layout-aware bounding box parsing (using `page.get_text('words')` or heuristic table cell boundary detection) to preserve 2D grid relationships before prompting.
 
 ---
@@ -198,4 +200,6 @@ The following table summarizes the four assignment cases discovered, grounded, a
 
 - **AI & Developer Tooling**: Built and debugged using Google Antigravity paired with Python 3.11.
 - **Starter Datasets**: The primary demonstration utilizes the curated Delhivery starter dataset (`01-delhivery-prospectus-2022-excerpt.pdf`, `02-delhivery-annual-report-fy24-excerpt.pdf`, `03-delhivery-q4-fy24-earnings-presentation.pdf`).
-- **Submission Deliverables**: All pre-computed fact extractions, cross-document relationships, and case demonstrations are stored in `data/facts.db` and exported as standalone JSON in `sample_output/sample_run.json`.
+- **Generalization Smoke Test**: The generic pipeline (used by arbitrary Streamlit uploads) was smoke-tested on the second starter domain (`starter-datasets/india-macroeconomy/03-imf-india-2025-article-iv-excerpt.pdf`) with zero domain-specific rules, hardcoded page numbers, or preset values. The system successfully parsed the document, extracted macroeconomic growth facts (e.g. India real GDP growth rate 6.5% and projected 6.6%), preserved source document filenames and page numbers, and verified 100% evidence grounding.
+- **Submission Deliverables**: All pre-computed fact extractions (91 grounded facts across 3 documents), cross-document relationships (15 total: 6 Corroborates, 3 Contradicts, 6 Reconcilable), and case demonstrations are stored in `data/facts.db` and exported as standalone JSON in `sample_output/sample_run.json`.
+

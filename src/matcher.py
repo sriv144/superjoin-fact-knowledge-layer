@@ -11,52 +11,63 @@ from src.models import Fact
 
 def canonicalize_predicate(pred: str) -> str:
     """
-    Map dynamic predicate names into broad semantic concept clusters:
+    Map dynamic predicate names into broad generic semantic clusters:
     e.g., 'revenue_from_contracts_with_customers' and 'turnover' -> 'revenue'
     'pin_code_reach' and 'postal_pin_codes' -> 'pin_codes'
+    Works across corporate, macroeconomic, and arbitrary operational domains.
     """
     p = pred.lower().replace("-", "_").replace(" ", "_")
     p = re.sub(r"[^a-z0-9_]", "", p)
 
-    # Financial revenue / turnover
-    if any(k in p for k in ["revenue", "turnover", "income_from_operations", "sales_income"]):
+    # Financial: Revenue, turnover, sales, top-line
+    if any(k in p for k in ["revenue", "turnover", "sales_income", "gross_receipts", "topline"]):
         return "revenue"
     
-    # Coverage / Pincodes
-    if "pin" in p and ("code" in p or "reach" in p):
+    # Financial: Profitability, EBITDA, margins, net income
+    if any(k in p for k in ["ebitda", "operating_profit", "net_profit", "net_income"]):
+        return "profitability"
+
+    # Coverage, postal reach, geography
+    if "pin" in p and ("code" in p or "reach" in p or "cover" in p):
         return "pin_codes"
     
-    # Workforce / Headcount / Team
-    if any(k in p for k in ["workforce", "team_size", "headcount", "employee"]):
+    # Workforce, headcount, staffing, employees
+    if any(k in p for k in ["workforce", "team_size", "headcount", "employee_strength", "staff_count"]):
         return "workforce"
 
-    # Active Customers
-    if "customer" in p and ("active" in p or "count" in p):
+    # Customer / Client base counts
+    if "customer" in p and any(k in p for k in ["active", "count", "base", "total"]):
         return "active_customers"
 
-    # Express parcel shipments / volume
-    if "express_parcel" in p:
-        return "express_parcel_volume"
+    # Registered legal office address
+    if "registered" in p and ("office" in p or "address" in p):
+        return "registered_office"
 
-    # Part truckload / PTL
-    if "ptl" in p or "part_truckload" in p or "parttruckload" in p:
-        return "ptl_tonnage"
+    # Corporate / Headquarters / Operational office address
+    if any(k in p for k in ["corporate", "headquarter", "hq"]) and ("office" in p or "address" in p):
+        return "corporate_office"
 
-    # Corporate / Registered Address
-    if "address" in p or "office" in p or "headquarters" in p:
+    # General physical / facility address
+    if any(k in p for k in ["address", "office"]):
         return "office_address"
 
-    # Governance / Directors
-    if "director" in p or "board" in p or "appointment" in p or "designation" in p:
+    # Governance, directorship, board appointments
+    if any(k in p for k in ["director", "board_member", "directorship", "trustee"]):
         return "governance_directorship"
 
-    # Real GDP growth
-    if "gdp" in p and ("growth" in p or "rate" in p):
+    # Macroeconomic: GDP growth
+    if "gdp" in p and any(k in p for k in ["growth", "rate", "projection", "real"]):
         return "gdp_growth"
 
-    # Inflation
-    if "inflation" in p or "cpi" in p:
-        return "cpi_inflation"
+    # Macroeconomic: Inflation, price index
+    if any(k in p for k in ["inflation", "cpi", "wpi", "deflator"]):
+        return "inflation"
+
+    # Generic operational volume / shipments / freight
+    if any(k in p for k in ["volume", "shipment", "tonnage", "freight"]):
+        # Group by the specific volume type tokens
+        tokens = [t for t in p.split("_") if t not in ["count", "number", "total", "annual", "quarterly"]]
+        return "_".join(tokens[:2]) if len(tokens) >= 2 else p
 
     return p
 

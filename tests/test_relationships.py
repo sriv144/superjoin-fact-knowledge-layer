@@ -154,3 +154,26 @@ def test_genuine_contradiction():
     assert rel.relationship_type == RelationshipType.CONTRADICTS
     assert "122002" in rel.short_explanation
     assert "122001" in rel.short_explanation
+    assert "Likely / unresolved contradiction" in rel.short_explanation
+
+
+def test_strict_tolerance_boundary():
+    """Verify that the strict 0.5% tolerance differentiates corroboration from minor rounding."""
+    engine = RelationshipEngine(llm_client=None)
+
+    # 1. Very close value (0.05% diff): Corroborates
+    fa = Fact(subject="Entity", predicate="revenue", raw_value="1000", normalized_value=1000.0, value_type="numeric", time_period="2024", source_document_id="d1", source_filename="f1.pdf", page_number=1, evidence_quote="1000")
+    fb = Fact(subject="Entity", predicate="revenue", raw_value="1002", normalized_value=1002.0, value_type="numeric", time_period="2024", source_document_id="d2", source_filename="f2.pdf", page_number=1, evidence_quote="1002")
+    rel_close = engine.evaluate_pair(fa, fb)
+    assert rel_close.relationship_type == RelationshipType.CORROBORATES
+
+    # 2. Borderline value (1.5% diff): Reconcilable (minor variation), NOT Corroboration
+    fc = Fact(subject="Entity", predicate="revenue", raw_value="1015", normalized_value=1015.0, value_type="numeric", time_period="2024", source_document_id="d2", source_filename="f2.pdf", page_number=1, evidence_quote="1015")
+    rel_divergent = engine.evaluate_pair(fa, fc)
+    assert rel_divergent.relationship_type == RelationshipType.RECONCILABLE
+
+    # 3. Material difference (15% diff): Contradicts
+    fd = Fact(subject="Entity", predicate="revenue", raw_value="1150", normalized_value=1150.0, value_type="numeric", time_period="2024", source_document_id="d2", source_filename="f2.pdf", page_number=1, evidence_quote="1150")
+    rel_contradict = engine.evaluate_pair(fa, fd)
+    assert rel_contradict.relationship_type == RelationshipType.CONTRADICTS
+

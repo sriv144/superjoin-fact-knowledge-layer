@@ -131,13 +131,31 @@ def parse_numeric_value(raw_val: str) -> Tuple[Optional[float], Optional[str], s
 
 def normalize_fact_values(
     raw_value: str,
-    raw_unit: Optional[str] = None
+    raw_unit: Optional[str] = None,
+    evidence_quote: Optional[str] = None
 ) -> Tuple[Optional[Union[float, str]], Optional[str], str]:
     """
-    Given a raw value string and optional unit string, compute normalized representation.
+    Given a raw value string, optional unit, and optional evidence quote,
+    compute normalized representation. Inspects evidence quote if magnitude
+    multipliers (million, crore, billion, k) were omitted from raw value.
     Returns: (normalized_value, normalized_unit, value_type)
     """
     combined = f"{raw_value} {raw_unit or ''}".strip()
+
+    # If multiplier is missing in raw value/unit, check if immediately adjacent in evidence quote
+    if evidence_quote and not any(m in combined.lower() for m in ["million", "mn", "crore", "cr", "billion", "bn", "lakh", "lac"]):
+        val_clean = raw_value.strip().replace(",", "")
+        val_escaped = re.escape(raw_value.strip())
+        multiplier_match = re.search(
+            rf"(?:{val_escaped}|{re.escape(val_clean)})\s*(mn|million|cr|crore|bn|billion|lakh|lac|k)\b",
+            evidence_quote,
+            re.IGNORECASE
+        )
+        if multiplier_match:
+            is_currency = any(s in evidence_quote.lower() for s in ["rs", "₹", "inr", "$", "usd"])
+            prefix = "Rs " if is_currency else ""
+            combined = f"{prefix}{multiplier_match.group(0)}"
+
     num_val, unit, val_type = parse_numeric_value(combined)
     
     if num_val is not None:

@@ -84,7 +84,11 @@ st.markdown("""
 @st.cache_resource
 def get_database():
     db_path = os.getenv("DATABASE_PATH", "data/facts.db")
-    return Database(db_path)
+    db = Database(db_path)
+    # If freshly cloned repository, auto-populate from bundled sample_run.json
+    if not db.get_documents() and os.path.exists("sample_output/sample_run.json"):
+        db.seed_from_sample_run("sample_output/sample_run.json")
+    return db
 
 
 @st.cache_resource
@@ -228,7 +232,7 @@ with tab_showcase:
         )
 
     # CASE 2: CONTRADICTION
-    with st.expander("❌ CASE 2: Genuine / Likely Contradiction", expanded=True):
+    with st.expander("⚠️ CASE 2: Likely / Unresolved Contradiction (PIN-Code Discrepancy)", expanded=True):
         st.markdown("**Metric**: Corporate Headquarters Postal PIN Code (122002 vs 122001)")
         col_a, col_b = st.columns(2)
         with col_a:
@@ -245,12 +249,12 @@ with tab_showcase:
             st.markdown("**Evidence Quote**:")
             st.markdown('<div class="evidence-quote">"5. Corporate address: Plot No. 5, Sector 44, Gurugram, Haryana 122001"</div>', unsafe_allow_html=True)
 
-        st.markdown('<div class="badge-contradicts">CLASSIFICATION: CONTRADICTS (Confidence: 95%)</div>', unsafe_allow_html=True)
-        st.error(
-            "**System Reasoning**: Both documents identify the exact same physical headquarters building (Plot 5 / Plot No. 5, Sector 44, Gurugram), "
-            "yet report mutually incompatible postal PIN codes (122002 in the 2022 Prospectus vs 122001 in the 2024 Annual Report). "
-            "Because this is an immutable geographical property rather than a time-evolving operational count, "
-            "the system correctly identifies this as a genuine cross-filing discrepancy."
+        st.markdown('<div class="badge-contradicts">CLASSIFICATION: CONTRADICTS (Confidence: 92%)</div>', unsafe_allow_html=True)
+        st.warning(
+            "**System Reasoning**: Likely / unresolved contradiction. "
+            "Both documents identify Plot 5 / Plot No. 5, Sector 44, Gurugram but report PIN 122002 versus 122001. "
+            "Neither supplied source contains context that reconciles the discrepancy. It may represent a typo, later correction, "
+            "or postal change, so the system identifies a likely conflict without asserting which source is correct."
         )
 
     # CASE 3: CONTEXTUAL RECONCILIATION

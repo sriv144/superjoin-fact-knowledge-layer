@@ -271,3 +271,34 @@ class Database:
             cursor.execute("DELETE FROM documents")
             cursor.execute("DELETE FROM processing_events")
             conn.commit()
+
+    def seed_from_sample_run(self, sample_run_path: str = "sample_output/sample_run.json"):
+        """Seed empty database with pre-computed evaluation run."""
+        if not os.path.exists(sample_run_path):
+            return
+        try:
+            with open(sample_run_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            facts = [Fact.model_validate(item) for item in data.get("all_facts", [])]
+            relationships = [CrossDocumentRelationship.model_validate(item) for item in data.get("relationships", [])]
+
+            # Reconstruct DocumentMetadata entries
+            doc_map = {}
+            for f in facts:
+                if f.source_document_id not in doc_map:
+                    doc_map[f.source_document_id] = DocumentMetadata(
+                        id=f.source_document_id,
+                        filename=f.source_filename,
+                        page_count=max(x.page_number for x in facts if x.source_document_id == f.source_document_id),
+                        processed_pages=len(set(x.page_number for x in facts if x.source_document_id == f.source_document_id)),
+                        extracted_facts_count=sum(1 for x in facts if x.source_document_id == f.source_document_id),
+                        grounded_facts_count=sum(1 for x in facts if x.source_document_id == f.source_document_id and x.is_grounded),
+                        status="processed"
+                    )
+            for doc in doc_map.values():
+                self.save_document(doc)
+            self.save_facts(facts)
+            self.save_relationships(relationships)
+        except Exception as e:
+            print(f"Notice: Could not auto-seed database from {sample_run_path}: {e}")
+

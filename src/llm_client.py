@@ -28,7 +28,7 @@ class LLMClient:
         
         if self.gemini_api_key:
             self.provider = "gemini"
-            self.model_name = model_name or os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+            self.model_name = model_name or os.getenv("GEMINI_MODEL", "gemini-flash-latest")
             import google.generativeai as genai
             genai.configure(api_key=self.gemini_api_key)
             self._gemini_client = genai
