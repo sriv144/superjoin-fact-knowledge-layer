@@ -116,3 +116,27 @@ def test_candidate_matcher_pairs_cross_document():
     )
     pairs = CandidateMatcher.find_candidate_pairs([fact_1, fact_2])
     assert len(pairs) == 1
+
+
+def test_llm_client_reports_unavailable_without_key():
+    from src.llm_client import LLMClient
+    import pytest
+
+    client = LLMClient(api_key="")
+    # When no key is configured in env or passed
+    assert client.provider == "none"
+    assert not client.is_available()
+    with pytest.raises(RuntimeError) as exc_info:
+        client.generate_json("test prompt")
+    assert "NVIDIA_API_KEY" in str(exc_info.value)
+
+
+def test_llm_client_nvidia_configuration():
+    from src.llm_client import LLMClient
+
+    # Test initialization with explicit mock key
+    client = LLMClient(api_key="mock-test-key-for-config-validation")
+    assert client.provider == "nvidia_nim"
+    assert client.is_available()
+    assert "nemotron" in client.model_name.lower() or "nvidia" in client.model_name.lower()
+

@@ -19,12 +19,12 @@ cd Superjoin-proj
 ### 2. Create and Activate Virtual Environment
 ```bash
 # Windows
-python -m venv venv
-venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\activate
 
 # macOS / Linux
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
 ### 3. Install Dependencies
@@ -35,21 +35,23 @@ pip install -r requirements.txt
 ### 4. Configure Environment Variables
 Copy the `.env.example` template:
 ```bash
+# Windows
+copy .env.example .env
+
+# macOS / Linux
 cp .env.example .env
 ```
-Open `.env` and configure your API key. The system supports either Google Gemini (recommended default) or any OpenAI-compatible provider:
+Open `.env` and add your NVIDIA API key:
 ```ini
-# Primary Provider: Google Gemini
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Alternative Provider: OpenAI / OpenRouter / Local Ollama
-# OPENAI_API_KEY=your_openai_api_key_here
-# OPENAI_BASE_URL=https://openrouter.ai/api/v1
-# OPENAI_MODEL=gpt-4o-mini
+# Primary LLM Provider: NVIDIA NIM (Nemotron)
+# Obtain key from: https://build.nvidia.com/
+NVIDIA_API_KEY=your_nvidia_api_key_here
+NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
+NVIDIA_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
 
 DATABASE_PATH=data/facts.db
 ```
-*(Note: A pre-extracted sample database and `sample_output/sample_run.json` are already included, so you can test and inspect results immediately even without an active API key).*
+*(Note: API configuration is optional for browsing the precomputed assignment demonstration with 91 facts and all four required cases, but required for processing new PDFs live).*
 
 ### 5. Run the Streamlit Application
 ```bash
@@ -96,8 +98,8 @@ Our goal is not merely to compare raw numbers, but to build a **context-aware kn
                           │
                           ▼
              [Structured Fact Extractor]
-            ├── Configurable LLM (Gemini 3.6 / OpenAI)
-            └── Dynamic snake_case schemas (no fixed enums)
+             ├── Primary LLM: NVIDIA NIM (Nemotron 3.5 Lightning)
+             └── Dynamic snake_case schemas (no fixed enums)
                           │
                           ▼
              [Evidence Grounding Validator]
@@ -154,9 +156,23 @@ A numerical difference alone must never be prematurely labeled a contradiction. 
 - **Scope Definitions**: Inspects inclusion/exclusion qualifiers (e.g. "including partner agents" vs "excluding partner agents").
 - **Genuine Material Conflicts**: When entity, time period, and scope are identical but values materially diverge (>5%), the pair is flagged as `CONTRADICTS`.
 
-#### 7. Where AI is Used vs. Deterministic Logic
-- **AI (LLM)**: Structured fact extraction from unstructured page text and qualitative semantic reasoning for non-numeric claims.
-- **Deterministic Python**: Text extraction, footnote cleaning, evidence quote verification, unit/currency normalization, candidate pairing, strict numeric tolerance checks, and temporal window comparisons.
+#### 7. Where AI Is Used vs. Where Deterministic Logic Is Used
+
+**Where AI Is Used**:
+NVIDIA Nemotron is used for:
+- Identifying meaningful numerical and semantic facts from unstructured document pages.
+- Converting those discoveries into the dynamic structured `Fact` schema (`subject`, `predicate`, `raw_value`, `unit`, `time_period`, `scope`, `evidence_quote`).
+- Resolving ambiguous semantic relationships where deterministic comparison is insufficient.
+
+**Where Deterministic Logic Is Used**:
+Python performs:
+- PDF extraction and page/evidence provenance (PyMuPDF).
+- Literal quote grounding verification against raw page text (rejects ungrounded hallucinations).
+- Number parsing and unit/currency normalization (e.g. ₹ million to canonical INR crore).
+- Obvious numerical comparison and date checks.
+- SQLite persistence and confidence guardrails.
+
+> **Core Philosophy**: *"Nemotron proposes interpretations; deterministic code verifies what can be verified."*
 
 #### 8. Why SQLite and Why No Graph Database
 A graph database (e.g. Neo4j) introduces heavy external processes, Docker requirements, and schema overhead without adding value for factual comparison. SQLite provides zero-dependency persistence, atomic ACID transactions, and instant startup. Extracted facts and computed relationships load instantaneously in Streamlit without re-running LLM queries.

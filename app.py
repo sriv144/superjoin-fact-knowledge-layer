@@ -108,9 +108,9 @@ with st.sidebar:
     
     # Provider Status
     if pipeline.llm.is_available():
-        st.success(f"🟢 LLM Active: {pipeline.llm.provider.upper()} ({pipeline.llm.model_name})")
+        st.success("🟢 Live Processing Ready — NVIDIA Nemotron")
     else:
-        st.warning("⚠️ No API Key in .env. Viewing cached facts.")
+        st.info("ℹ️ Live PDF processing requires NVIDIA_API_KEY. The precomputed assignment demonstration remains available below.")
 
     st.markdown("---")
     st.subheader("📤 Ingest Documents")
@@ -123,19 +123,25 @@ with st.sidebar:
 
     if uploaded_files:
         if st.button("🚀 Process Uploaded PDFs", type="primary"):
-            with st.spinner("Processing uploaded PDFs..."):
-                saved_paths = []
-                temp_dir = tempfile.mkdtemp()
-                for uf in uploaded_files:
-                    target_path = os.path.join(temp_dir, uf.name)
-                    with open(target_path, "wb") as f:
-                        f.write(uf.getbuffer())
-                    saved_paths.append(target_path)
-                
-                # Ingest through pipeline
-                res = pipeline.run_full_pipeline(saved_paths)
-                st.success(f"Extracted {res['facts_extracted']} facts, found {res['relationships_found']} relationships!")
-                st.rerun()
+            if not pipeline.llm.is_available():
+                st.warning("⚠️ Live PDF processing requires NVIDIA_API_KEY. Add NVIDIA_API_KEY to the project .env file to process new PDFs. The precomputed assignment demonstration remains available below.")
+            else:
+                with st.spinner("Processing uploaded PDFs with NVIDIA Nemotron..."):
+                    saved_paths = []
+                    temp_dir = tempfile.mkdtemp()
+                    for uf in uploaded_files:
+                        target_path = os.path.join(temp_dir, uf.name)
+                        with open(target_path, "wb") as f:
+                            f.write(uf.getbuffer())
+                        saved_paths.append(target_path)
+                    
+                    # Ingest through pipeline
+                    try:
+                        res = pipeline.run_full_pipeline(saved_paths)
+                        st.success(f"Extracted {res['facts_extracted']} facts, found {res['relationships_found']} relationships!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error processing document: {str(e)}")
 
     st.markdown("---")
     st.subheader("⚡ Quick Actions")
