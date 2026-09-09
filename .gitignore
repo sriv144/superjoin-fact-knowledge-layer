@@ -39,6 +39,9 @@ data/*.sqlite3
 .coverage
 htmlcov/
 
+# Local review artifacts
+tmp/
+
 # IDE and OS
 .vscode/
 .idea/

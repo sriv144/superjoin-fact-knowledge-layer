@@ -118,6 +118,26 @@ def test_candidate_matcher_pairs_cross_document():
     assert len(pairs) == 1
 
 
+def test_candidate_matcher_prefers_closest_duplicate_metric_pair():
+    fact_a_wrong = Fact(
+        subject="Company", predicate="revenue", raw_value="100", normalized_value=100.0,
+        source_document_id="doc_a", source_filename="doc_a.pdf", page_number=1, evidence_quote="100"
+    )
+    fact_a_match = Fact(
+        subject="Company", predicate="revenue", raw_value="900", normalized_value=900.0,
+        source_document_id="doc_a", source_filename="doc_a.pdf", page_number=1, evidence_quote="900"
+    )
+    fact_b = Fact(
+        subject="Company", predicate="revenue", raw_value="901", normalized_value=901.0,
+        source_document_id="doc_b", source_filename="doc_b.pdf", page_number=1, evidence_quote="901"
+    )
+
+    pairs = CandidateMatcher.find_candidate_pairs([fact_a_wrong, fact_a_match, fact_b])
+    assert len(pairs) == 1
+    assert fact_a_match in pairs[0]
+    assert fact_b in pairs[0]
+
+
 def test_llm_client_reports_unavailable_without_key():
     from src.llm_client import LLMClient
     import pytest
@@ -139,4 +159,3 @@ def test_llm_client_nvidia_configuration():
     assert client.provider == "nvidia_nim"
     assert client.is_available()
     assert "nemotron" in client.model_name.lower() or "nvidia" in client.model_name.lower()
-

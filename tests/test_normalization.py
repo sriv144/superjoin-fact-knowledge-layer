@@ -49,6 +49,37 @@ def test_thousands_with_k_tonnes():
     assert unit == "million tonnes"
 
 
+def test_pdf_thousands_separator_artifact_in_currency_table():
+    """A table text layer may turn visual 8,932 into 8.932; retain the table's scale."""
+    val, unit, val_type = normalize_fact_values(
+        "8.932",
+        raw_unit="₹ Cr",
+        evidence_quote="₹ Cr FY23 FY24 FY25 Revenue from services 7,224 8,142 8.932",
+    )
+    assert val == 8932.0
+    assert unit == "INR crore"
+    assert val_type == "currency"
+
+
+def test_pdf_thousands_separator_uses_page_context():
+    val, unit, _ = normalize_fact_values(
+        "8.932",
+        raw_unit="INR crore",
+        evidence_quote="Revenue from services 8.932",
+        source_context="₹ Cr FY23 FY24 FY25 Revenue from services 7,224 8,142 8.932",
+    )
+    assert val == 8932.0
+    assert unit == "INR crore"
+
+
+def test_malformed_rupee_glyph_with_million_unit():
+    """PyMuPDF may expose a rupee glyph as J in otherwise valid Indian tables."""
+    val, unit, val_type = parse_numeric_value("J89,319Mn")
+    assert val == 8931.9
+    assert unit == "INR crore"
+    assert val_type == "currency"
+
+
 def test_text_normalization_fallback():
     val, unit, val_type = normalize_fact_values("Plot No. 5, Sector 44, Gurugram 122001")
     assert val_type == "text"

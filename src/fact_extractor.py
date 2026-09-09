@@ -42,7 +42,8 @@ CRITICAL RULES:
 1. Do not extract every generic sentence. Extract only meaningful, comparable facts.
 2. The evidence_quote MUST be a verbatim or near-verbatim quote from the supplied page text.
 3. Explicitly capture temporal context (time_period), scope (e.g. consolidated, includes partner agents), and units.
-4. Output MUST conform to the JSON schema with a top-level key 'facts'.
+4. Set subject to the primary organization, person, or country the fact is about - never a metric heading such as "Revenue from services" or "EBITDA". If the page omits the entity, infer it only from the document title or filename.
+5. Output MUST conform to the JSON schema with a top-level key 'facts'.
 """
 
 
@@ -113,7 +114,8 @@ Respond with a JSON object with key 'facts' containing a list of objects matchin
             norm_val, norm_unit, val_type = normalize_fact_values(
                 item.raw_value,
                 item.unit,
-                evidence_quote=item.evidence_quote
+                evidence_quote=item.evidence_quote,
+                source_context=page_text,
             )
 
             fact = Fact(
