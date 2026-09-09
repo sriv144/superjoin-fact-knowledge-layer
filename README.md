@@ -48,6 +48,7 @@ Open `.env` and add your NVIDIA API key:
 NVIDIA_API_KEY=your_nvidia_api_key_here
 NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
 NVIDIA_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
+NVIDIA_REQUEST_TIMEOUT_SECONDS=45
 
 DATABASE_PATH=data/facts.db
 ```
@@ -74,7 +75,7 @@ python -m pytest
 
 ## Video Demo
 
-Demo: <VIDEO_LINK>
+Demo: [Watch the 3-minute walkthrough](https://drive.google.com/file/d/1IzCkFQfuETEWnxvUkGPODzPD10VO4PTq/view?usp=sharing)
 *(Duration: ≤ 3 minutes demonstrating PDF ingestion, fact exploration, and the four assignment cases).*
 
 ---
@@ -218,4 +219,3 @@ The following table summarizes the four assignment cases discovered, grounded, a
 - **Starter Datasets**: The primary demonstration utilizes the curated Delhivery starter dataset (`01-delhivery-prospectus-2022-excerpt.pdf`, `02-delhivery-annual-report-fy24-excerpt.pdf`, `03-delhivery-q4-fy24-earnings-presentation.pdf`).
 - **Generalization Smoke Test**: The generic pipeline (used by arbitrary Streamlit uploads) was smoke-tested on the second starter domain (`starter-datasets/india-macroeconomy/03-imf-india-2025-article-iv-excerpt.pdf`) with zero domain-specific rules, hardcoded page numbers, or preset values. The system successfully parsed the document, extracted macroeconomic growth facts (e.g. India real GDP growth rate 6.5% and projected 6.6%), preserved source document filenames and page numbers, and verified 100% evidence grounding.
 - **Submission Deliverables**: All pre-computed fact extractions (91 grounded facts across 3 documents), cross-document relationships (15 total: 6 Corroborates, 3 Contradicts, 6 Reconcilable), and case demonstrations are stored in `data/facts.db` and exported as standalone JSON in `sample_output/sample_run.json`.
-

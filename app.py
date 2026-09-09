@@ -24,26 +24,177 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for crisp, evaluator-friendly UI
+# A deliberately explicit dark theme keeps source evidence readable even when the
+# browser or Streamlit is configured for dark mode.
 st.markdown("""
 <style>
-    .metric-card {
-        background-color: #f8f9fa;
-        border-radius: 8px;
-        padding: 16px;
-        border-left: 4px solid #1E88E5;
-        margin-bottom: 12px;
+    :root {
+        --canvas: #0b1020;
+        --surface: #131b2d;
+        --surface-raised: #19243a;
+        --border: #2a3852;
+        --text: #edf3ff;
+        --muted: #aebdd3;
+        --accent: #72a7ff;
+        --success: #52d9a0;
+        --warning: #ffcb6b;
+        --danger: #ff8e9a;
     }
-    .fact-box {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 14px;
-        margin-bottom: 10px;
+
+    .stApp, [data-testid="stAppViewContainer"] {
+        background: var(--canvas);
+        color: var(--text);
+    }
+    .block-container {
+        max-width: 1440px;
+        padding: 2rem 2.5rem 3rem;
+    }
+    h1, h2, h3, h4, h5, h6, p, li, label, [data-testid="stMarkdownContainer"] {
+        color: var(--text);
+    }
+    [data-testid="stCaptionContainer"], .stCaption, small {
+        color: var(--muted) !important;
+    }
+    [data-testid="stSidebar"] {
+        background: #0e1525;
+        border-right: 1px solid var(--border);
+    }
+    [data-testid="stSidebar"] > div:first-child {
+        background: #0e1525;
+    }
+    [data-testid="stSidebar"] h1 {
+        font-size: 1.4rem;
+        letter-spacing: -0.03em;
+        margin-bottom: 0.15rem;
+    }
+    [data-testid="stSidebar"] .stButton > button {
+        width: 100%;
+        min-height: 2.55rem;
+        justify-content: flex-start;
+        padding: 0 0.85rem;
+    }
+    [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
+        background: #121d2f;
+        border-color: #365177;
+        border-radius: 10px;
+        min-height: 8.6rem;
+        padding: 0.8rem 0.7rem;
+    }
+    [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button {
+        min-height: 2.3rem;
+    }
+    .sidebar-kicker, .sidebar-section-label {
+        color: #89b5ff !important;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+    .sidebar-kicker { margin: 0 0 0.35rem; }
+    .sidebar-section-label { margin: 0 0 0.35rem; }
+    .sidebar-note {
+        color: var(--muted) !important;
+        font-size: 0.84rem;
+        line-height: 1.45;
+        margin: 0 0 0.7rem;
+    }
+    .trust-list {
+        color: var(--muted);
+        font-size: 0.84rem;
+        line-height: 1.55;
+        margin: 0;
+        padding-left: 1.15rem;
+    }
+    .trust-list li { color: var(--muted) !important; margin: 0.35rem 0; }
+    [data-testid="stSidebar"] hr, hr {
+        border-color: var(--border);
+    }
+    [data-testid="stFileUploaderDropzone"] {
+        background: var(--surface);
+        border: 1px dashed #46628c;
+        border-radius: 12px;
+    }
+    [data-testid="stFileUploaderDropzone"] * {
+        color: var(--text) !important;
+    }
+    .hero {
+        background: linear-gradient(120deg, #182846 0%, #12203a 50%, #102b30 100%);
+        border: 1px solid #314765;
+        border-radius: 18px;
+        padding: 1.9rem 2rem;
+        margin: 0 0 1.4rem;
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.18);
+    }
+    .eyebrow {
+        color: #9fc2ff !important;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        margin: 0 0 0.45rem;
+    }
+    .hero h1 {
+        color: #ffffff !important;
+        font-size: clamp(2rem, 4vw, 3.05rem);
+        letter-spacing: -0.055em;
+        line-height: 1.05;
+        margin: 0;
+    }
+    .hero p:last-child {
+        color: #c7d7ef !important;
+        font-size: 1.02rem;
+        line-height: 1.6;
+        margin: 0.75rem 0 0;
+        max-width: 58rem;
+    }
+    [data-testid="stMetric"] {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.85rem 0.95rem;
+    }
+    [data-testid="stMetricLabel"] p {
+        color: var(--muted) !important;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    [data-testid="stMetricValue"] {
+        color: var(--text) !important;
+    }
+    [data-baseweb="tab-list"] {
+        gap: 0.4rem;
+        border-bottom: 1px solid var(--border);
+    }
+    [data-baseweb="tab"] {
+        color: var(--muted) !important;
+        font-weight: 650;
+        padding: 0.7rem 0.8rem;
+    }
+    [data-baseweb="tab"][aria-selected="true"] {
+        color: #ffffff !important;
+        border-bottom-color: var(--accent) !important;
+    }
+    details[data-testid="stExpander"] {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        margin-bottom: 0.85rem;
+        overflow: hidden;
+    }
+    details[data-testid="stExpander"] summary {
+        color: var(--text) !important;
+        font-weight: 700;
+    }
+    [data-testid="stVerticalBlockBorderWrapper"] {
+        background: var(--surface);
+        border-color: var(--border);
+        border-radius: 12px;
     }
     .badge-corroborates {
-        background-color: #e8f5e9;
-        color: #2e7d32;
+        background-color: #133c31;
+        color: #8ff0c2 !important;
         padding: 4px 10px;
         border-radius: 12px;
         font-weight: 600;
@@ -51,8 +202,8 @@ st.markdown("""
         display: inline-block;
     }
     .badge-contradicts {
-        background-color: #ffebee;
-        color: #c62828;
+        background-color: #482530;
+        color: #ffb7bf !important;
         padding: 4px 10px;
         border-radius: 12px;
         font-weight: 600;
@@ -60,8 +211,8 @@ st.markdown("""
         display: inline-block;
     }
     .badge-reconcilable {
-        background-color: #e3f2fd;
-        color: #1565c0;
+        background-color: #183a61;
+        color: #afd3ff !important;
         padding: 4px 10px;
         border-radius: 12px;
         font-weight: 600;
@@ -69,13 +220,65 @@ st.markdown("""
         display: inline-block;
     }
     .evidence-quote {
-        background-color: #f5f5f5;
-        border-left: 3px solid #757575;
-        padding: 8px 12px;
-        font-family: monospace;
-        font-size: 0.85rem;
-        margin-top: 6px;
-        border-radius: 4px;
+        background-color: #0c1423;
+        border: 1px solid #34435d;
+        border-left: 3px solid #77adff;
+        color: #dceaff !important;
+        padding: 0.8rem 0.9rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.82rem;
+        line-height: 1.58;
+        margin-top: 0.45rem;
+        border-radius: 8px;
+        overflow-wrap: anywhere;
+    }
+    .evidence-quote * {
+        color: #dceaff !important;
+    }
+    [data-testid="stAlert"] {
+        border-radius: 10px;
+        border: 1px solid var(--border);
+    }
+    [data-testid="stAlert"] * {
+        color: var(--text) !important;
+    }
+    [data-baseweb="select"] > div,
+    [data-testid="stTextInput"] input {
+        background: var(--surface) !important;
+        border-color: var(--border) !important;
+        color: var(--text) !important;
+    }
+    code {
+        background: #0a1322 !important;
+        color: #96c7ff !important;
+        border-radius: 5px;
+        padding: 0.12rem 0.32rem;
+    }
+    [data-testid="stDataFrame"] {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .stButton > button {
+        background: #17253b;
+        border: 1px solid #3a5378;
+        border-radius: 8px;
+        color: var(--text) !important;
+        font-weight: 650;
+    }
+    .stButton > button:hover {
+        border-color: #79adff;
+        color: #ffffff !important;
+        background: #213858;
+    }
+    [data-testid="stBaseButton-primary"] {
+        background: #367be0 !important;
+        border-color: #4e90f0 !important;
+    }
+    @media (max-width: 760px) {
+        .block-container { padding: 1.1rem 1rem 2rem; }
+        .hero { padding: 1.35rem 1.2rem; border-radius: 14px; }
+        [data-baseweb="tab"] { padding: 0.65rem 0.4rem; font-size: 0.79rem; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -103,6 +306,7 @@ pipeline = get_pipeline()
 
 # ----------------- SIDEBAR -----------------
 with st.sidebar:
+    st.markdown('<p class="sidebar-kicker">Document intelligence</p>', unsafe_allow_html=True)
     st.title("📑 Fact Knowledge Layer")
     st.caption("Superjoin VIT 2026 Engineering Intern Assignment")
     
@@ -113,16 +317,36 @@ with st.sidebar:
         st.info("ℹ️ Live PDF processing requires NVIDIA_API_KEY. The precomputed assignment demonstration remains available below.")
 
     st.markdown("---")
-    st.subheader("📤 Ingest Documents")
+    st.markdown('<p class="sidebar-section-label">01 · Ingest documents</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sidebar-note">Upload one or more PDFs to extract evidence-backed facts and compare them.</p>', unsafe_allow_html=True)
     uploaded_files = st.file_uploader(
-        "Upload arbitrary PDFs",
+        "Source PDFs",
         type=["pdf"],
         accept_multiple_files=True,
         help="Upload new PDF files to extract facts and compute cross-document relationships."
     )
 
+    processing_scope = st.selectbox(
+        "Processing scope",
+        options=[
+            "Quick demo — 1 salient page per PDF",
+            "Balanced — up to 3 salient pages per PDF",
+            "Thorough — up to 12 salient pages per PDF",
+        ],
+        index=1,
+        help="More pages improve coverage but require one hosted-model extraction request per selected page.",
+    )
+    max_pages_by_scope = {
+        "Quick demo — 1 salient page per PDF": 1,
+        "Balanced — up to 3 salient pages per PDF": 3,
+        "Thorough — up to 12 salient pages per PDF": 12,
+    }
+    max_salient_pages = max_pages_by_scope[processing_scope]
+    if max_salient_pages == 1:
+        st.caption("Best for a live demo: validates the upload path quickly using the strongest page from each PDF.")
+
     if uploaded_files:
-        if st.button("🚀 Process Uploaded PDFs", type="primary"):
+        if st.button("🚀 Process uploaded PDFs", type="primary", use_container_width=True):
             if not pipeline.llm.is_available():
                 st.warning("⚠️ Live PDF processing requires NVIDIA_API_KEY. Add NVIDIA_API_KEY to the project .env file to process new PDFs. The precomputed assignment demonstration remains available below.")
             else:
@@ -137,39 +361,50 @@ with st.sidebar:
                     
                     # Ingest through pipeline
                     try:
-                        res = pipeline.run_full_pipeline(saved_paths)
-                        st.success(f"Extracted {res['facts_extracted']} facts, found {res['relationships_found']} relationships!")
+                        res = pipeline.run_full_pipeline(
+                            saved_paths,
+                            max_salient_pages=max_salient_pages,
+                        )
+                        st.success(
+                            f"Processed {res['documents_processed']} document(s): extracted "
+                            f"{res['facts_extracted']} facts, found {res['relationships_found']} "
+                            f"relationships, and recorded {res['failures_recorded']} safety event(s)."
+                        )
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error processing document: {str(e)}")
 
     st.markdown("---")
-    st.subheader("⚡ Quick Actions")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🔄 Refresh Data"):
-            st.rerun()
-    with col2:
-        if st.button("🗑️ Reset DB"):
+    st.markdown('<p class="sidebar-section-label">02 · Workspace</p>', unsafe_allow_html=True)
+    if st.button("🔄 Refresh workspace", use_container_width=True):
+        st.rerun()
+    with st.expander("Database maintenance", expanded=False):
+        st.caption("Clear the local database and reload the bundled demonstration data.")
+        confirm_reset = st.checkbox("I understand this clears local data")
+        if st.button("🗑️ Reset local database", disabled=not confirm_reset, use_container_width=True):
             db.clear_all()
             st.warning("Database cleared.")
             st.rerun()
 
     st.markdown("---")
+    st.markdown('<p class="sidebar-section-label">03 · Trust model</p>', unsafe_allow_html=True)
     st.markdown("""
-    **Core Architecture Principles**:
-    - Grounding validation rejects hallucinations
-    - Dynamic schemas (no hardcoded enums)
-    - Contradiction safety via contextual reasoning
-    - Single-engine SQLite persistence
-    """)
+    <ul class="trust-list">
+      <li>Evidence grounding rejects hallucinations</li>
+      <li>Dynamic, document-led schemas</li>
+      <li>Context-aware contradiction safety</li>
+      <li>Local SQLite persistence</li>
+    </ul>
+    """, unsafe_allow_html=True)
 
 # ----------------- MAIN AREA -----------------
-st.title("Fact Knowledge Layer & Cross-Document Reasoning")
-st.markdown(
-    "Extracts verifiable facts from PDFs, grounds evidence to source pages, "
-    "normalizes values across reporting standards, and analyzes cross-document relationships."
-)
+st.markdown("""
+<section class="hero">
+  <p class="eyebrow">Evidence-first document intelligence</p>
+  <h1>Fact Knowledge Layer</h1>
+  <p>Inspect grounded facts, normalize comparable values, and understand how claims relate across every uploaded PDF.</p>
+</section>
+""", unsafe_allow_html=True)
 
 # Fetch stats from DB
 docs = db.get_documents()
@@ -333,8 +568,7 @@ with tab_relationships:
         st.info("No relationships found matching current filters. Ingest documents or adjust search filters.")
 
     for r in filtered_rels:
-        with st.container():
-            st.markdown('<div class="fact-box">', unsafe_allow_html=True)
+        with st.container(border=True):
             
             # Header with Badge
             badge_class = f"badge-{r.relationship_type.value.lower()}"
@@ -357,7 +591,6 @@ with tab_relationships:
             if r.contextual_difference:
                 st.markdown(f"**Contextual Factor**: *{r.contextual_difference}*")
             
-            st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------- TAB 3: FACTS EXPLORER -----------------
 with tab_facts:

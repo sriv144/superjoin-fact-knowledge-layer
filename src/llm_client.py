@@ -30,13 +30,23 @@ class LLMClient:
         nvidia_base_url = base_url or os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
         default_model = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
 
+        try:
+            request_timeout = float(os.getenv("NVIDIA_REQUEST_TIMEOUT_SECONDS", "45"))
+        except ValueError:
+            request_timeout = 45.0
+
         if nvidia_key:
             self.provider = "nvidia_nim"
             self.model_name = model_name or default_model
             self.base_url = nvidia_base_url
             self.api_key = nvidia_key
             from openai import OpenAI
-            self._client = OpenAI(base_url=self.base_url, api_key=self.api_key)
+            self._client = OpenAI(
+                base_url=self.base_url,
+                api_key=self.api_key,
+                timeout=request_timeout,
+                max_retries=1,
+            )
         else:
             self.provider = "none"
             self.model_name = "none"

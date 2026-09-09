@@ -106,30 +106,56 @@ class CandidateMatcher:
             comp_key = build_comparison_key(f)
             key_buckets.setdefault(comp_key, []).append(f)
 
-        for comp_key, group in key_buckets.items():
-            n = len(group)
-            for i in range(n):
-                for j in range(i + 1, n):
-                    fact_a = group[i]
-                    fact_b = group[j]
+        def compatible(fact_a: Fact, fact_b: Fact) -> bool:
+            if fact_a.value_type == fact_b.value_type or "unknown" in {fact_a.value_type, fact_b.value_type}:
+                return True
+            return {fact_a.value_type, fact_b.value_type}.issubset({"numeric", "currency"})
 
-                    # 1. Reject intra-document comparison
-                    if fact_a.source_document_id == fact_b.source_document_id:
+        def numeric_distance(fact_a: Fact, fact_b: Fact) -> float:
+            if isinstance(fact_a.normalized_value, (int, float)) and isinstance(fact_b.normalized_value, (int, float)):
+                return abs(fact_a.normalized_value - fact_b.normalized_value) / max(
+                    abs(fact_a.normalized_value), abs(fact_b.normalized_value), 1.0
+                )
+            return 0.0
+
+        def add_pair(fact_a: Fact, fact_b: Fact) -> None:
+            if not compatible(fact_a, fact_b):
+                return
+            pair_id = tuple(sorted([fact_a.id, fact_b.id]))
+            if pair_id not in seen_pairs:
+                seen_pairs.add(pair_id)
+                candidate_pairs.append((fact_a, fact_b))
+
+        for group in key_buckets.values():
+            by_document: dict[str, List[Fact]] = {}
+            for fact in group:
+                by_document.setdefault(fact.source_document_id, []).append(fact)
+
+            document_ids = list(by_document)
+            for i, doc_a in enumerate(document_ids):
+                for doc_b in document_ids[i + 1:]:
+                    facts_a, facts_b = by_document[doc_a], by_document[doc_b]
+                    shared_predicates = {fact.predicate for fact in facts_a} & {fact.predicate for fact in facts_b}
+
+                    # Prefer exact dynamic predicates. When extraction produces
+                    # duplicates for one metric, retain the closest numeric
+                    # counterpart instead of emitting every Cartesian pairing.
+                    if shared_predicates:
+                        for predicate in shared_predicates:
+                            exact_pairs = [
+                                (fact_a, fact_b)
+                                for fact_a in facts_a
+                                for fact_b in facts_b
+                                if fact_a.predicate == predicate
+                                and fact_b.predicate == predicate
+                                and compatible(fact_a, fact_b)
+                            ]
+                            if exact_pairs:
+                                add_pair(*min(exact_pairs, key=lambda pair: numeric_distance(*pair)))
                         continue
 
-                    # 2. Check pair deduplication
-                    pair_id = tuple(sorted([fact_a.id, fact_b.id]))
-                    if pair_id in seen_pairs:
-                        continue
-                    seen_pairs.add(pair_id)
-
-                    # 3. Compatible value types
-                    if fact_a.value_type != fact_b.value_type and fact_a.value_type != "unknown" and fact_b.value_type != "unknown":
-                        # Allow currency vs numeric (e.g. INR crore vs plain float)
-                        types = {fact_a.value_type, fact_b.value_type}
-                        if not types.issubset({"numeric", "currency"}):
-                            continue
-
-                    candidate_pairs.append((fact_a, fact_b))
+                    for fact_a in facts_a:
+                        for fact_b in facts_b:
+                            add_pair(fact_a, fact_b)
 
         return candidate_pairs

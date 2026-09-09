@@ -27,6 +27,14 @@ def parse_numeric_value(raw_val: str) -> Tuple[Optional[float], Optional[str], s
 
     val_str = raw_val.strip()
     clean_str = val_str.replace(",", "").replace("\u20b9", "Rs").replace("₹", "Rs")
+    # PyMuPDF occasionally maps a rupee glyph to a leading "J" in Indian
+    # financial PDFs (for example, visual "₹89,319Mn" -> "J89,319Mn").
+    # Restrict the repair to an otherwise-invalid leading symbol followed by a
+    # monetary magnitude; ordinary text values are never changed.
+    if re.match(r"^\s*J\s*\d", clean_str) and re.search(
+        r"\d\s*(?:mn|million|cr|crore|bn|billion)\b", clean_str, re.IGNORECASE
+    ):
+        clean_str = re.sub(r"^\s*J", "Rs", clean_str, count=1)
     
     # 1. Percentage check
     pct_match = re.search(r"([+-]?\s*\d+(?:\.\d+)?)\s*(?:%|per\s*cent)", clean_str, re.IGNORECASE)
@@ -132,7 +140,8 @@ def parse_numeric_value(raw_val: str) -> Tuple[Optional[float], Optional[str], s
 def normalize_fact_values(
     raw_value: str,
     raw_unit: Optional[str] = None,
-    evidence_quote: Optional[str] = None
+    evidence_quote: Optional[str] = None,
+    source_context: Optional[str] = None,
 ) -> Tuple[Optional[Union[float, str]], Optional[str], str]:
     """
     Given a raw value string, optional unit, and optional evidence quote,
@@ -142,17 +151,43 @@ def normalize_fact_values(
     """
     combined = f"{raw_value} {raw_unit or ''}".strip()
 
-    # If multiplier is missing in raw value/unit, check if immediately adjacent in evidence quote
+    # Models often emit a bare number plus a separate table-unit field such as
+    # "₹ Cr". Keep the magnitude adjacent to the number so the normalizer can
+    # recognize it; INR remains the default for an unqualified crore value.
+    if raw_unit and re.fullmatch(r"[+-]?\s*\d+(?:\.\d+)?", raw_value.strip()):
+        standalone_unit = re.sub(r"(?:₹|rs\.?|inr)", "", raw_unit, flags=re.IGNORECASE).strip()
+        if standalone_unit:
+            combined = f"{raw_value} {standalone_unit}"
+
+    # Some PDF table extractors turn a thousands separator into a decimal point
+    # (for example, visual "8,932" becomes text-layer "8.932"). Only repair
+    # this when the surrounding evidence establishes a comma-thousands table and
+    # the value is explicitly monetary; genuine decimal metrics stay untouched.
+    raw_number = raw_value.strip().replace("₹", "").replace("Rs.", "").replace("Rs", "").strip()
+    context_text = f"{evidence_quote or ''} {source_context or ''}".strip()
+    currency_context = f"{raw_unit or ''} {context_text}".lower()
+    has_comma_thousands = bool(
+        context_text and re.search(r"\b\d{1,3},\d{3}(?:\.\d+)?\b", context_text)
+    )
+    if (
+        re.fullmatch(r"\d{1,3}\.\d{3}", raw_number)
+        and has_comma_thousands
+        and any(marker in currency_context for marker in ["₹", "rs", "inr"])
+    ):
+        combined = combined.replace(raw_number, raw_number.replace(".", ""), 1)
+
+    # If multiplier is missing in raw value/unit, check the grounded quote and
+    # page context for an adjacent table/header unit.
     if evidence_quote and not any(m in combined.lower() for m in ["million", "mn", "crore", "cr", "billion", "bn", "lakh", "lac"]):
         val_clean = raw_value.strip().replace(",", "")
         val_escaped = re.escape(raw_value.strip())
         multiplier_match = re.search(
             rf"(?:{val_escaped}|{re.escape(val_clean)})\s*(mn|million|cr|crore|bn|billion|lakh|lac|k)\b",
-            evidence_quote,
+            context_text,
             re.IGNORECASE
         )
         if multiplier_match:
-            is_currency = any(s in evidence_quote.lower() for s in ["rs", "₹", "inr", "$", "usd"])
+            is_currency = any(s in context_text.lower() for s in ["rs", "₹", "inr", "$", "usd"])
             prefix = "Rs " if is_currency else ""
             combined = f"{prefix}{multiplier_match.group(0)}"
 

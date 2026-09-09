@@ -122,7 +122,8 @@ class FactKnowledgePipeline:
         Compute relationships across all documents currently in the database.
         Idempotent: clears previous relationship state before saving newly computed pairs.
         """
-        all_facts = self.db.get_facts(grounded_only=False)
+        # Relationship claims should only be made from source-grounded facts.
+        all_facts = self.db.get_facts(grounded_only=True)
         candidate_pairs = CandidateMatcher.find_candidate_pairs(all_facts)
         
         relationships: List[CrossDocumentRelationship] = []
@@ -142,7 +143,8 @@ class FactKnowledgePipeline:
     def run_full_pipeline(
         self,
         pdf_paths: List[str],
-        page_specs: Optional[Dict[str, List[int]]] = None
+        page_specs: Optional[Dict[str, List[int]]] = None,
+        max_salient_pages: Optional[int] = 12,
     ) -> Dict[str, Any]:
         """
         Run the complete pipeline over a list of PDF file paths.
@@ -154,7 +156,11 @@ class FactKnowledgePipeline:
         for path in pdf_paths:
             fname = os.path.basename(path)
             target_pgs = page_specs.get(fname) if page_specs else None
-            meta, facts, failures = self.process_pdf(path, target_pages=target_pgs)
+            meta, facts, failures = self.process_pdf(
+                path,
+                target_pages=target_pgs,
+                max_salient_pages=max_salient_pages,
+            )
             processed_docs.append(meta)
             total_facts += len(facts)
             total_failures += len(failures)
